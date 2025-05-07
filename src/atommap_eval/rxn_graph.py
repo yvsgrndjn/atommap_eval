@@ -91,15 +91,25 @@ def add_mapping_edges(unionG: nx.Graph) -> nx.Graph:
     return unionG
 
 
-def build_reaction_graph(rxn_smi: str) -> nx.Graph:
+def build_reaction_graph(rxn_smi: str, canonicalize: bool = True) -> nx.Graph:
     """
-    Main entry point: build a reaction graph from a reaction SMILES.
+    Build a reaction graph from a reaction SMILES, optionally canonicalizing it first.
+
+    Args:
+        rxn_smi: Atom-mapped reaction SMILES
+        canonicalize: Whether to canonicalize the input before processing, canonicalizing
+        both SMILES and atom-map order
+
+    Returns:
+        NetworkX graph of the reaction
     """
+
     if not isinstance(rxn_smi, str):
         raise TypeError(f"Expected string, got {type(rxn_smi)}")
 
-    can_smi = canonicalize_rxn_smiles(rxn_smi)
-    rxn = AllChem.ReactionFromSmarts(can_smi, useSmiles=True)
+    if canonicalize:
+        rxn_smi = canonicalize_rxn_smiles(rxn_smi)
+    rxn = AllChem.ReactionFromSmarts(rxn_smi, useSmiles=True)
 
     reactant_graphs = get_mapped_graphs(rxn.GetReactants())
     product_graphs = get_mapped_graphs(rxn.GetProducts())

@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "atommap-eval"
+version = "0.1.0"
+description = "Evaluate atom-mapping equivalence of chemical reactions using graph isomorphism."
+authors = [
+    { name = "Yves Grandjean", email = "yves.grandjean@unibe.ch" }
+]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.8"
+
+dependencies = [
+    "rdkit",
+    "networkx>=2.8",
+    "pandas>=1.3",
+    "rxn-utils",
+    "rxn-chem-utils",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "black",
+    "ruff"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+atommap-eval = "atommap_eval.cli:main"
+
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+fixable = ["ALL"]

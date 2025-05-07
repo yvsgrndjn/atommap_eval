@@ -1,0 +1,2 @@
+[console_scripts]
+atommap-eval = atommap_eval.cli:main

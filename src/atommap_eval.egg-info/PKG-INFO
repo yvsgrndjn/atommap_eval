@@ -1,0 +1,50 @@
+Metadata-Version: 2.4
+Name: atommap-eval
+Version: 0.1.0
+Summary: Evaluate atom-mapping equivalence of chemical reactions using graph isomorphism.
+Author-email: Yves Grandjean <yves.grandjean@unibe.ch>
+License: MIT
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: rdkit
+Requires-Dist: networkx>=2.8
+Requires-Dist: pandas>=1.3
+Requires-Dist: rxn-utils
+Requires-Dist: rxn-chem-utils
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: pytest-cov; extra == "dev"
+Requires-Dist: black; extra == "dev"
+Requires-Dist: ruff; extra == "dev"
+Dynamic: license-file
+
+# Package installation
+
+## From this GitHub repository
+Clone the following repo:
+```bash
+git clone path_to_repo
+cd atommap_eval
+```
+
+Create an `atommap-eval` environment:
+```bash
+conda create -n atommap-eval python=3.9
+conda activate atommap-eval
+```
+
+Install required packages with conda:
+```bash
+conda install -c conda-forge rdkit networkx pandas
+```
+
+Then from the root of the folder:
+```bash
+pip install -e .
+```
+
+Or in dev mode to have the pytest installed as well:
+```bash
+pip install -e .[dev]
+```

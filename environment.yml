@@ -1,0 +1,12 @@
+name: atommap-eval
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - rdkit
+  - pandas
+  - networkx
+  - pip
+  - pip:
+      - pytest
+      - pytest-cov

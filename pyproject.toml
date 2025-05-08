@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atommap-eval"
-version = "0.2.0"
+version = "0.3.0"
 description = "Evaluate atom-mapping equivalence of chemical reactions using graph isomorphism."
 authors = [
     { name = "Yves Grandjean", email = "yves.grandjean@unibe.ch" }

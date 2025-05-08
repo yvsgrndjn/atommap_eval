@@ -1,4 +1,4 @@
-.PHONY: test lint install clean dist
+.PHONY: test lint install clean dist clean-dev
 
 install:
 	pip install -e ".[dev]"
@@ -19,3 +19,11 @@ clean:
 dist:
 	python -m build
 
+
+clean-dev:
+	@echo "🧹 Cleaning build artifacts, caches, and bytecode..."
+	rm -rf __pycache__ */__pycache__ */*/__pycache__
+	rm -rf *.egg-info */*.egg-info */*/*.egg-info
+	rm -rf .pytest_cache .mypy_cache .ruff_cache .coverage
+	rm -rf dist build
+	@echo "✅ Clean complete."

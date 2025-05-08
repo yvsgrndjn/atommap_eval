@@ -16,3 +16,8 @@ __pycache__/
 
 # Local notebooks
 *.ipynb
+
+# Ignore build artifacts
+*.egg-info/
+dist/
+build/

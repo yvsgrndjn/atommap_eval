@@ -18,7 +18,7 @@ It supports:
 It allows consistent evaluation of atom-mapping validity (e.g. against a ground truth atom-mapped reaction) by taking into account equivalence
 of some atoms (i.e. all `CH3` in `t-Bu` are equivalent, any shuffling of atom-map indices should not impact correctness of the mapping)
 
-**Warning:** tautomeric mappings are not considered equivalent even though from a chemist's perspective they are. Because template extraction
+*Warning:* tautomeric mappings are not considered equivalent even though from a chemist's perspective they are. Because template extraction
 of the underlying reactivity would yield different results. Flags for tautomers will however be implemented in further implementations to better deal with this specific case.
 ---
 

@@ -54,6 +54,7 @@ def _evaluate_pair(pair):
 
 def evaluate_pairs_sequentially(
     pairs: List[Union[Tuple[str, str], ReactionPair]],
+    canonicalize: bool = False,
 ) -> List[bool]:
     """
     Evaluate atom-map equivalence for a list of reaction pairs
@@ -70,6 +71,7 @@ def evaluate_pairs_sequentially(
 
 def evaluate_pairs_in_parallel(
     pairs: List[Union[Tuple[str, str], ReactionPair]],
+    canonicalize: bool = False,
     num_workers: Optional[int] = None,
     chunksize: int = 1,
 ) -> List[bool]:
@@ -86,5 +88,5 @@ def evaluate_pairs_in_parallel(
         List[bool]: True/False for each comparison.
     """
     with ProcessPoolExecutor(max_workers=num_workers) as executor:
-        results = list(executor.map(_evaluate_pair, pairs, chunksize=chunksize))
+        results = list(executor.map(_evaluate_pair, pairs, canonicalize=canonicalize, chunksize=chunksize))
     return results

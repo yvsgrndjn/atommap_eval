@@ -7,7 +7,7 @@ _NODE_MATCH, _EDGE_MATCH = define_node_edge_matches()
 
 
 def are_atom_maps_equivalent(
-    gt_smi: str, pred_smi: str, canonicalize: bool = True
+    gt_smi: str, pred_smi: str, canonicalize: bool = False
 ) -> bool:
     """
     Compare two atom-mapped reaction SMILES to determine whether

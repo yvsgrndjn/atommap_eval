@@ -6,7 +6,9 @@ from .rxn_graph import build_reaction_graph, define_node_edge_matches
 _NODE_MATCH, _EDGE_MATCH = define_node_edge_matches()
 
 
-def are_atom_maps_equivalent(gt_smi: str, pred_smi: str, canonicalize: bool = True) -> bool:
+def are_atom_maps_equivalent(
+    gt_smi: str, pred_smi: str, canonicalize: bool = True
+) -> bool:
     """
     Compare two atom-mapped reaction SMILES to determine whether
     the atom mappings are equivalent.
@@ -20,7 +22,6 @@ def are_atom_maps_equivalent(gt_smi: str, pred_smi: str, canonicalize: bool = Tr
         gt_smi (str): Ground truth atom-mapped reaction SMILES
         pred_smi (str): Predicted atom-mapped reaction SMILES
         canonicalize (bool): Whether to canonicalize both before evaluation
-
 
     Returns:
         bool: True if the atom mappings are equivalent, False otherwise

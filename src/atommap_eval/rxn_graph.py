@@ -97,8 +97,8 @@ def build_reaction_graph(rxn_smi: str, canonicalize: bool = True) -> nx.Graph:
 
     Args:
         rxn_smi: Atom-mapped reaction SMILES
-        canonicalize: Whether to canonicalize the input before processing, canonicalizing
-        both SMILES and atom-map order
+        canonicalize: Whether to canonicalize the input before processing,
+        canonicalizing both SMILES and atom-map order
 
     Returns:
         NetworkX graph of the reaction

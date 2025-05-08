@@ -1,0 +1,18 @@
+# Byte-compile / cache files
+__pycache__/
+*.py[cod]
+
+# Bytecode in nested folders
+**/__pycache__/
+
+# Compiled test caches
+*.pytest_cache/
+.pytest_cache/
+.mypy_cache/
+
+# IDE files
+.vscode/
+.idea/
+
+# Local notebooks
+*.ipynb

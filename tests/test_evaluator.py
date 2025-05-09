@@ -130,7 +130,7 @@ def test_non_equivalent_mappings_no_can(gt, pred):
 
 
 def test_invalid_smiles():
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         are_atom_maps_equivalent(
             "INVALID>>[CH3:1][OH:2]", "[CH3:1][OH:2]>>[CH3:1][O-:2]"
         )

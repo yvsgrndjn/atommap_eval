@@ -1,5 +1,6 @@
 from concurrent.futures import ProcessPoolExecutor
 from typing import List, Optional, Tuple, Union
+from functools import partial
 
 from .data_models import ReactionPair
 from .evaluator import are_atom_maps_equivalent
@@ -45,11 +46,12 @@ def _unpack_pair(pair: Union[Tuple[str, str], ReactionPair]) -> Tuple[str, str]:
         raise TypeError(f"Unsupported pair type: {type(pair)}")
 
 
-def _evaluate_pair(pair):
+def _evaluate_pair(pair, canonicalize: bool = True) -> bool:
     from .evaluator import are_atom_maps_equivalent
     from .parallel import _unpack_pair
 
-    return are_atom_maps_equivalent(*_unpack_pair(pair))
+    rxn1, rxn2 = _unpack_pair(pair)
+    return are_atom_maps_equivalent(rxn1, rxn2, canonicalize=canonicalize)
 
 
 def evaluate_pairs_sequentially(
@@ -87,6 +89,8 @@ def evaluate_pairs_in_parallel(
     Returns:
         List[bool]: True/False for each comparison.
     """
+    bound_fn = partial(_evaluate_pair, canonicalize=canonicalize)
+
     with ProcessPoolExecutor(max_workers=num_workers) as executor:
-        results = list(executor.map(_evaluate_pair, pairs, canonicalize=canonicalize, chunksize=chunksize))
+        results = list(executor.map(bound_fn, pairs, chunksize=chunksize))
     return results

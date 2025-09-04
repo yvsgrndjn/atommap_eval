@@ -44,7 +44,7 @@ pip install -e ".[dev]"
 ## Usage
 ### Python
 ```python
-from atommap_eval.evaluator import are_atoms_equivalent
+from atommap_eval.evaluator import are_atom_maps_equivalent
 
 gt = "[C:1](=[O:2])[O-:3].[H+:4]>>[C:1](=[O:2])[OH:3]"
 pred = "[H+:4].[C:1](=[O:2])[O-:3]>>[C:1](=[O:2])[OH:3]"

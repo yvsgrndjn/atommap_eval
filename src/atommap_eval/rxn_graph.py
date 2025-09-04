@@ -18,17 +18,12 @@ def build_atom_graph(mol: Chem.Mol) -> nx.Graph:
     """
     G = nx.Graph()
     for atom in mol.GetAtoms():
-        map_num = (
-            int(atom.GetProp("molAtomMapNumber"))
-            if atom.HasProp("molAtomMapNumber")
-            else 0
-        )
         G.add_node(
             atom.GetIdx(),
             atomic_num=atom.GetAtomicNum(),
+            atom_map=atom.GetAtomMapNum(),
             formal_charge=atom.GetFormalCharge(),
             degree=atom.GetDegree(),
-            atom_map=map_num,
         )
     for bond in mol.GetBonds():
         G.add_edge(

@@ -49,13 +49,24 @@ pip install -e ".[dev]"
 
 ## Usage
 ### Python
+If you do not have too many examples, you can use the following:
 ```python
+# simple case
 from atommap_eval.evaluator import are_atom_maps_equivalent
 
 gt = "[C:1](=[O:2])[O-:3].[H+:4]>>[C:1](=[O:2])[OH:3]"
 pred = "[H+:4].[C:1](=[O:2])[O-:3]>>[C:1](=[O:2])[OH:3]"
 result = are_atom_maps_equivalent(gt, pred)
 print(result) # True
+```
+
+However, if you have more reactions to evaluate and what to compute them in parallel, use:
+```python
+from atommap_eval.parallel import evaluate_pairs_in_parallel
+
+# pairs is either a list of tuples (rxn1, rxn2), or a ReactionPair object from atommap_eval.data_models
+results = evaluate_pairs_in_parallel(pairs)
+# results is a list of booleans
 ```
 
 ### CLI

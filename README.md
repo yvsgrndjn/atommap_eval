@@ -25,6 +25,12 @@ of the underlying reactivity would yield different results. Flags for tautomers 
 
 ## Installation
 
+### Quick install for users (pip)
+```bash
+pip install atommap-eval
+```
+
+### For developers
 ```bash
 # Clone the repo and install in editable mode
 git clone https://github.com/yvsgrndjn/atommap_eval.git
@@ -32,9 +38,9 @@ cd atommap_eval
 pip install -e ".[dev]"
 ```
 
-or with Conda:
+or in case you want to create a new environment with Conda:
 ```bash
-conda create -n atommap_eval python=3.9
+conda create -n atommap_eval python=3.9 -c conda-forge rdkit
 conda activate atommap_eval
 pip install -e ".[dev]"
 ```

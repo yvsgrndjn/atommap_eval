@@ -229,7 +229,7 @@ def batch_preprocess_reaction_pairs(
     return results
 
 
-def convert_preproc_to_df(results: List[PreprocessResult]) -> pd.DataFrame:
+def convert_preproc_to_df_via_list(results: List[PreprocessResult]) -> pd.DataFrame:
     """
     Converts results of preprocessing (i.e. a list of PreprocessResult instances) into pd.DataFrame.
 
@@ -253,6 +253,46 @@ def convert_preproc_to_df(results: List[PreprocessResult]) -> pd.DataFrame:
         }
         data.append(row)
     return pd.DataFrame(data)
+
+
+def convert_preproc_to_df(results: List[PreprocessResult]) -> pd.DataFrame:
+    """
+    Convert a list of PreprocessResult instances into a flat, analysis-ready DataFrame.
+
+    Each flag is expanded into its own Boolean column (ref_A, ref_B, ... / pred_A, pred_B, ...),
+    allowing for direct filtering and aggregation.
+
+    Args:
+        results: List of PreprocessResult objects (output of `batch_preprocess_reaction_pairs()`)
+
+    Returns:
+        pd.DataFrame with columns:
+            - pair_index: integer index of the pair
+            - preproc_ref: preprocessed reference reaction
+            - preproc_pred: preprocessed predicted reaction
+            - ref_<FLAG>: boolean column for each flag in reference
+            - pred_<FLAG>: boolean column for each flag in prediction
+    """
+    rows = []
+    # determine all possible flags dynamically
+    all_flags = sorted({*results[0].flags_ref.keys(), *results[0].flags_pred.keys()})
+
+    for i, r in enumerate(results):
+        row = {
+            "pair_index": i,
+            "preproc_ref": r.reference,
+            "preproc_pred": r.prediction,
+        }
+
+        # one column per flag: True/False for ref and pred sides
+        for flag in all_flags:
+            row[f"ref_{flag}"] = bool(r.flags_ref.get(flag, False))
+            row[f"pred_{flag}"] = bool(r.flags_pred.get(flag, False))
+
+        rows.append(row)
+
+    return pd.DataFrame(rows)
+
 
 
 def preprocess_dataset(df: pd.DataFrame, path_to_save: Optional[str] = None):

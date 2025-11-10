@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Dict
 
 """
 # Example
@@ -33,3 +33,20 @@ class ReactionPair:
     ground_truth: str
     prediction: str
     id: Optional[str] = None
+
+
+@dataclass
+class PreprocessResult:
+    """
+    Represents the preprocessing structure of a ground-truth / predicted reaction SMILES pair.
+
+    Attributes:
+        reference: preprocessed ground-truth reaction. None if unfit for evaluation.
+        prediction: preprocessed predicted reaction SMILES pair. None if unfit for evaluation.
+        flags_ref: notify either why the preprocessing failed or what formatting problems are shown by the ground-truth.
+        flags_pred: notify either why the preprocessing failed or what formatting problems are shown by the prediction
+    """
+    reference: Optional[str]
+    prediction: Optional[str]
+    flags_ref: Dict[str, bool]
+    flags_pred: Dict[str, bool]

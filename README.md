@@ -4,16 +4,12 @@
 
 ## Overview
 
-`atommap_eval` is a Python package for comparing two atom-mapped reactions and determining whether they are chemically equivalent, using graph theory and RDKit.
+`atommap_eval` is a Python package for comparing two atom-mapped reactions and determining whether they are chemically equivalent, using their graph (`networkx`) representation and RDKit.
 
-It supports:
-
-- ✅ Canonicalization and standardization of SMILES
-- ✅ Graph construction with atom-level / bond-level attributes and mapping
-- ✅ Graph isomorphism checks using `networkx`
-- ✅ Evaluation over single or batch pairs (in parallel or sequentially)
-- ✅ CLI support for evaluating CSV/JSON files
-- ✅ Fast testing and linting with `pytest`, `ruff`, and `black`
+How it works:
+- Optional preprocessing: "Canonicalization" and standardization of reaction SMILES to ensure all reactions are in the right format.
+- Reactions graphs construction with atom-level / bond-level attributes and mapping
+- Graph isomorphism checks using `networkx.is_isomorphic()`
 
 It allows consistent evaluation of atom-mapping validity (e.g. against a ground truth atom-mapped reaction) by taking into account equivalence
 of some atoms (i.e. all `CH3` in `t-Bu` are equivalent, any shuffling of atom-map indices should not impact correctness of the mapping)
@@ -48,6 +44,14 @@ pip install -e ".[dev]"
 ---
 
 ## Usage
+### Preprocessing
+To preprocess data, either use the simple wrapper if it matches your needs:
+```python
+import atommap_eval.preprocess as preprocess
+
+preprocess_df = preprocess.preprocess_dataset(df, path_to_save)
+```
+
 ### Python
 If you do not have too many examples, you can use the following:
 ```python
@@ -79,7 +83,7 @@ atommap_eval reactions.csv -f csv -p 4 -o results.csv
 ## Project structure
 ```bash
 src/atommap_eval/
-├── canonicalizer.py
+├── preprocess.py
 ├── cli.py
 ├── data_models.py
 ├── evaluator.py

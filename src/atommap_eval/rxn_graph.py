@@ -9,7 +9,7 @@ from networkx.algorithms.isomorphism import (
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-from .canonicalizer import canonicalize_rxn_smiles
+from .preprocess import canonicalize_rxn_smiles
 
 
 def build_atom_graph(mol: Chem.Mol) -> nx.Graph:

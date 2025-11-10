@@ -274,8 +274,13 @@ def convert_preproc_to_df(results: List[PreprocessResult]) -> pd.DataFrame:
             - pred_<FLAG>: boolean column for each flag in prediction
     """
     rows = []
-    # determine all possible flags dynamically
-    all_flags = sorted({*results[0].flags_ref.keys(), *results[0].flags_pred.keys()})
+    all_flags = None
+    for r in results:
+        if r.reference is not None or r.prediction is not None:
+            all_flags = sorted({*r.flags_ref.keys(), *r.flags_pred.keys()})
+            break
+    if all_flags is None:
+        all_flags = []
 
     for i, r in enumerate(results):
         row = {

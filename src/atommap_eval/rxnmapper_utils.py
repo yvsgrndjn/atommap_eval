@@ -116,14 +116,14 @@ def process_reaction_with_product_maps_atoms(rxn, skip_if_not_in_precursors=Fals
                         found_alternative = True
                         break
                 if not found_alternative:
-                    warnings.append(
-                        f"Two product atoms mapped to the same precursor atom: {rxn}"
-                    )
+                    msg = f"Two product atoms mapped to the same precursor atom: {rxn}"
+                    warnings.append(msg)
                     products_maps.append(corresponding_precursors_atom)
             else:
                 products_maps.append(corresponding_precursors_atom)
     for w in list(set(warnings)):
         LOGGER.warning(w)
+        raise ValueError(w)
     return joined_rxn, products_maps
 
 

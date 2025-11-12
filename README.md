@@ -17,11 +17,18 @@ of some atoms (i.e. all `CH3` in `t-Bu` are equivalent, any shuffling of atom-ma
 *Warning:* tautomeric mappings are not considered equivalent even though from a chemist's perspective they are. Because template extraction
 of the underlying reactivity would yield different results. Flags for tautomers will however be implemented in further implementations to better deal with this specific case.
 
+### Next steps:
+- update pip package to latest version (now at 1.0.0)
+- clean preprocessing implementation
+- test CLI for >1.0.0
+- update all tests >1.0.0
+- define clearly how evaluation needs to be considered and what are edge cases examples
 ---
 
 ## Installation
 
 ### Quick install for users (pip)
+For version 1.0.0 only so far. Works well but can be slow for some specific cases and really lacks preprocessing. 
 ```bash
 pip install atommap-eval
 ```
@@ -53,7 +60,7 @@ preprocess_df = preprocess.preprocess_dataset(df, path_to_save)
 ```
 
 ### Python
-If you do not have too many examples, you can use the following:
+If you have few examples, use the following:
 ```python
 # simple case
 from atommap_eval.evaluator import are_atom_maps_equivalent
@@ -64,13 +71,19 @@ result = are_atom_maps_equivalent(gt, pred)
 print(result) # True
 ```
 
-However, if you have more reactions to evaluate and what to compute them in parallel, use:
+However, if you have more reactions to evaluate, use:
 ```python
-from atommap_eval.parallel import evaluate_pairs_in_parallel
+from atommap_eval.pair_evaluation import evaluate_pairs_batched
 
-# pairs is either a list of tuples (rxn1, rxn2), or a ReactionPair object from atommap_eval.data_models
-results = evaluate_pairs_in_parallel(pairs)
-# results is a list of booleans
+# `pairs` is either a list of tuples (rxn1, rxn2) or ReactionPair objects from atommap_eval.data_models
+# for example if you store reactions in `your_df` under columns "ground_truth_rxn" and "predicted_rxn":
+pairs = [
+    ReactionPair(row.ground_truth_rxn, row.predicted_rxn)
+    for _, row in your_df.iterrows()
+]
+
+results = evaluate_pairs_batched(pairs)
+# results is a list of tuples (result: bool, status: str) where status can be "ok", "timeout", "error:{e}"
 ```
 
 ### CLI
@@ -88,7 +101,7 @@ src/atommap_eval/
 ├── data_models.py
 ├── evaluator.py
 ├── input_io.py
-├── parallel.py
+├── pair_evaluation.py
 ├── rxn_graph.py
 ├── rxnmapper_utils.py
 tests/

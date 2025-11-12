@@ -4,7 +4,7 @@ from typing import List
 
 from .data_models import ReactionPair
 from .input_io import load_pairs_from_csv, load_pairs_from_json
-from .parallel import evaluate_pairs_in_parallel
+from .pair_evaluation import evaluate_pairs_in_parallel
 
 """
 # Example usages

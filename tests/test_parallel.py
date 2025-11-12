@@ -1,5 +1,5 @@
 from atommap_eval.data_models import ReactionPair
-from atommap_eval.parallel import (
+from atommap_eval.pair_evaluation import (
     evaluate_pairs_in_parallel,
     evaluate_pairs_sequentially,
 )

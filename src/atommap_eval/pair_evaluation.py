@@ -2,39 +2,12 @@ from concurrent.futures import ProcessPoolExecutor, TimeoutError, as_completed
 from typing import List, Optional, Tuple, Union
 from functools import partial
 import time
+import multiprocessing as mp
 
 from .data_models import ReactionPair
 from .evaluator import are_atom_maps_equivalent
 
-"""
-evalute_pairs_sequentially : great for debugging or small jobs
-evaluate_pairs_in_parallel : multi-core batch execution
-    (use chunksize > 1 for large datasets to reduce overhead)
 
-# Example usage
-```
-from atommap_eval.parallel import evaluate_pairs_in_parallel
-from atommap_eval.data_models import ReactionPair
-
-pairs = [
-    ReactionPair(
-        "[CH3:1][OH:2]>>[CH3:1][O-:2]",
-        "[Na+:3].[CH3:1][OH:2]>>[CH3:1][O-:2].[Na+:3]", id="rxn_1"
-    ),
-    (
-        "[C:1](=[O:2])[O-:3]>>[C:1](=[O:2])[OH:3]",
-        "[C:1](=[O:2])[OH:3]>>[C:1](=[O:2])[OH:3]"
-    ),
-]
-
-results = evaluate_pairs_in_parallel(pairs, num_workers=4)
-print(results)  # [True, True]
-
-```
-
-"""
-
-# --- helpers ---
 
 def _unpack_pair(pair: Union[Tuple[str, str], "ReactionPair"]) -> Tuple[str, str]:
     """Extract (gt, pred) from a tuple or a ReactionPair."""
@@ -51,7 +24,21 @@ def _safe_equivalence_check(gt: str, pred: str, canonicalize: bool = False) -> b
     return are_atom_maps_equivalent(gt_smi=gt, pred_smi=pred, canonicalize=canonicalize)
 
 
-# --- main function ---
+def _run_with_hard_timeout(func, args=(), timeout: float = 1.0):
+    """
+    [dev]
+    Run func(*args) with a hard timeout (kills process if over time). 
+    Extremely slow, with timeout = 1 makes most of the evaluations timeout.
+    """
+    ctx = mp.get_context("spawn")
+    with ctx.Pool(1) as pool:
+        res = pool.apply_async(func, args)
+        try:
+            return res.get(timeout=timeout)
+        except mp.context.TimeoutError:
+            pool.terminate()
+            return None
+
 
 def evaluate_pairs_batched(
     pairs: List[Union[Tuple[str, str], "ReactionPair"]],
@@ -73,30 +60,31 @@ def evaluate_pairs_batched(
     Returns:
         List[Tuple[Optional[bool], str]]:
             Each element is (equivalent, status)
-            where status ∈ {"ok", "timeout", "invalid_input", "error:<type>"}
+            where status is in {"ok", "timeout", "invalid_input", "error:<type>"}
     """
     results_all: List[Tuple[Optional[bool], str]] = []
     total_start = time.perf_counter()
 
-    # iterate over batches
-    for start in range(0, len(pairs), batch_size):
-        batch = pairs[start:start + batch_size]
+    print(f"Starting evaluation of {len(pairs)} pairs with {num_workers or 'default'} workers...", flush=True)
 
-        with ProcessPoolExecutor(max_workers=num_workers) as executor:
+    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        for start in range(0, len(pairs), batch_size):
+            end = min(start + batch_size, len(pairs))
+            print(f"Submitting batch {start}-{end} / {len(pairs)}...", flush=True)
+
+            batch = pairs[start:end]
             futures = []
 
             for pair in batch:
                 gt, pred = _unpack_pair(pair)
-
-                # validate quickly
                 if not isinstance(gt, str) or not isinstance(pred, str) or not gt.strip() or not pred.strip():
                     results_all.append((None, "invalid_input"))
                     continue
-
                 futures.append(executor.submit(_safe_equivalence_check, gt, pred, canonicalize))
 
-            # collect as completed
+            # collect results
             for future in as_completed(futures):
+                start_t = time.perf_counter()
                 try:
                     equivalent = future.result(timeout=timeout)
                     status = "ok"
@@ -104,9 +92,11 @@ def evaluate_pairs_batched(
                     equivalent, status = None, "timeout"
                 except Exception as e:
                     equivalent, status = None, f"error:{type(e).__name__}"
-
+                elapsed = time.perf_counter() - start_t
                 results_all.append((equivalent, status))
+                if elapsed > 10: 
+                    print(f"[WARN]  Slow reaction took {elapsed:.1f}s", flush=True)
 
     total_elapsed = time.perf_counter() - total_start
-    print(f"Processed {len(pairs)} pairs in {total_elapsed:.2f}s using {num_workers or 'default'} workers.")
+    print(f"[DONE] Processed {len(pairs)} pairs in {total_elapsed:.2f}s using {num_workers or 'default'} workers.")
     return results_all

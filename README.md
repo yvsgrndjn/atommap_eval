@@ -18,17 +18,17 @@ of some atoms (i.e. all `CH3` in `t-Bu` are equivalent, any shuffling of atom-ma
 of the underlying reactivity would yield different results. Flags for tautomers will however be implemented in further implementations to better deal with this specific case.
 
 ### Next steps:
-- update pip package to latest version (now at 1.0.0)
 - clean preprocessing implementation
 - test CLI for >1.0.0
 - update all tests >1.0.0
+- research preprocessing that avoids infinitely long isomorphism checks
 - define clearly how evaluation needs to be considered and what are edge cases examples
 ---
 
 ## Installation
 
 ### Quick install for users (pip)
-For version 1.0.0 only so far. Works well but can be slow for some specific cases and really lacks preprocessing. 
+For version 1.0.0 only so far. Works well but can be slow for some specific cases, lacks preprocessing. 
 ```bash
 pip install atommap-eval
 ```
@@ -52,6 +52,11 @@ pip install -e ".[dev]"
 
 ## Usage
 ### Preprocessing
+Preprocessing helps format atom-mapped reactions for a fair evaluation. It is split in 2 parts:
+- canonicalization + sanitization : sorts reaction SMILES and atom-mapping indices deterministically. Sanitizes reactions. Returns None if one of the steps fails (associated with flags A, B, C, S )
+- Format analyis : raises specific flags (D) if preprocessing worked but the reaction format
+will lead to a negative evaluation.
+
 To preprocess data, either use the simple wrapper if it matches your needs:
 ```python
 import atommap_eval.preprocess as preprocess

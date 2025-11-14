@@ -84,12 +84,10 @@ def evaluate_pairs_batched(
 
             # collect results
             for future in as_completed(futures):
-                start_t = time.perf_counter()
                 try:
                     equivalent, status = future.result()
                 except Exception as e:
                     equivalent, status = None, f"error:{type(e).__name__}"
-                elapsed = time.perf_counter() - start_t
                 results_all.append((equivalent, status))
 
     total_elapsed = time.perf_counter() - total_start

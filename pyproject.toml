@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atommap-eval"
-version = "1.3.0"
+version = "1.4.0"
 description = "Evaluate atom-mapping equivalence of chemical reactions using graph isomorphism."
 authors = [
     { name = "Yves Grandjean", email = "yves.grandjean@unibe.ch" }
@@ -19,6 +19,7 @@ dependencies = [
     "pandas>=1.3",
     "rxn-utils",
     "rxn-chem-utils",
+    "wrapt_timeout_decorator",
 ]
 
 [project.optional-dependencies]

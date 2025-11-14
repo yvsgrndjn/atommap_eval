@@ -4,6 +4,8 @@ from functools import partial
 import time
 import multiprocessing as mp
 
+from wrapt_timeout_decorator import timeout
+
 from .data_models import ReactionPair
 from .evaluator import are_atom_maps_equivalent
 
@@ -24,28 +26,26 @@ def _safe_equivalence_check(gt: str, pred: str, canonicalize: bool = False) -> b
     return are_atom_maps_equivalent(gt_smi=gt, pred_smi=pred, canonicalize=canonicalize)
 
 
-def _run_with_hard_timeout(func, args=(), timeout: float = 1.0):
-    """
-    [dev]
-    Run func(*args) with a hard timeout (kills process if over time). 
-    Extremely slow, with timeout = 1 makes most of the evaluations timeout.
-    """
-    ctx = mp.get_context("spawn")
-    with ctx.Pool(1) as pool:
-        res = pool.apply_async(func, args)
-        try:
-            return res.get(timeout=timeout)
-        except mp.context.TimeoutError:
-            pool.terminate()
-            return None
+@timeout(dec_timeout=10.0, use_signals=False)
+def timed_are_maps_equivalent(gt, pred, canonicalize):
+    return are_atom_maps_equivalent(gt_smi=gt, pred_smi=pred, canonicalize=canonicalize)
 
+
+def safe_timed_equivalence_check(gt: str, pred: str, canonicalize: bool=False):
+    try:
+        result = timed_are_maps_equivalent(gt, pred, canonicalize)
+        return result, "ok"
+    except TimeoutError:
+        return None, "timeout"
+    except Exception as e:
+        return None, f"error:{type(e).__name__}"
+    
 
 def evaluate_pairs_batched(
     pairs: List[Union[Tuple[str, str], "ReactionPair"]],
     canonicalize: bool = False,
     num_workers: Optional[int] = None,
     batch_size: int = 1000,
-    timeout: float = 1.0,
 ) -> List[Tuple[Optional[bool], str]]:
     """
     Evaluate atom-map equivalence for many (gt, pred) pairs using batches, timeouts, and parallelism.
@@ -80,22 +80,17 @@ def evaluate_pairs_batched(
                 if not isinstance(gt, str) or not isinstance(pred, str) or not gt.strip() or not pred.strip():
                     results_all.append((None, "invalid_input"))
                     continue
-                futures.append(executor.submit(_safe_equivalence_check, gt, pred, canonicalize))
+                futures.append(executor.submit(safe_timed_equivalence_check, gt, pred, canonicalize))
 
             # collect results
             for future in as_completed(futures):
                 start_t = time.perf_counter()
                 try:
-                    equivalent = future.result(timeout=timeout)
-                    status = "ok"
-                except TimeoutError:
-                    equivalent, status = None, "timeout"
+                    equivalent, status = future.result()
                 except Exception as e:
                     equivalent, status = None, f"error:{type(e).__name__}"
                 elapsed = time.perf_counter() - start_t
                 results_all.append((equivalent, status))
-                if elapsed > 10: 
-                    print(f"[WARN]  Slow reaction took {elapsed:.1f}s", flush=True)
 
     total_elapsed = time.perf_counter() - total_start
     print(f"[DONE] Processed {len(pairs)} pairs in {total_elapsed:.2f}s using {num_workers or 'default'} workers.")

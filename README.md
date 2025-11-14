@@ -17,18 +17,18 @@ of some atoms (i.e. all `CH3` in `t-Bu` are equivalent, any shuffling of atom-ma
 *Warning:* tautomeric mappings are not considered equivalent even though from a chemist's perspective they are. Because template extraction
 of the underlying reactivity would yield different results. Flags for tautomers will however be implemented in further implementations to better deal with this specific case.
 
+By default, if the isomorphism takes more than 10 seconds, it is interrupted and returns None with status "timeout".
+
 ### Next steps:
 - clean preprocessing implementation
 - test CLI for >1.0.0
 - update all tests >1.0.0
-- research preprocessing that avoids infinitely long isomorphism checks
 - define clearly how evaluation needs to be considered and what are edge cases examples
 ---
 
 ## Installation
 
 ### Quick install for users (pip)
-For version 1.0.0 only so far. Works well but can be slow for some specific cases, lacks preprocessing. 
 ```bash
 pip install atommap-eval
 ```

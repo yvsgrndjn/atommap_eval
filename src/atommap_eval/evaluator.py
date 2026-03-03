@@ -11,7 +11,8 @@ def are_atom_maps_equivalent(
 ) -> bool:
     """
     Compare two atom-mapped reaction SMILES to determine whether
-    the atom mappings are equivalent.
+    the atom mappings are equivalent. Reactions atom-mapped as tautomers
+    from one another are not detected and hence not considered equivalent.
 
     This comparison is based on:
     - Canonicalizing the input SMILES (Optional)

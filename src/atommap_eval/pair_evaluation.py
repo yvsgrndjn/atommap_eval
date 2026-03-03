@@ -1,8 +1,6 @@
-from concurrent.futures import ProcessPoolExecutor, TimeoutError, as_completed
+from concurrent.futures import ProcessPoolExecutor, TimeoutError
 from typing import List, Optional, Tuple, Union
-from functools import partial
 import time
-import multiprocessing as mp
 
 from wrapt_timeout_decorator import timeout
 
@@ -62,7 +60,7 @@ def evaluate_pairs_batched(
             Each element is (equivalent, status)
             where status is in {"ok", "timeout", "invalid_input", "error:<type>"}
     """
-    results_all: List[Tuple[Optional[bool], str]] = []
+    results_all: List[Tuple[Optional[bool], str]] = [None] * len(pairs)
     total_start = time.perf_counter()
 
     print(f"Starting evaluation of {len(pairs)} pairs with {num_workers or 'default'} workers...", flush=True)
@@ -75,20 +73,21 @@ def evaluate_pairs_batched(
             batch = pairs[start:end]
             futures = []
 
-            for pair in batch:
+            for idx_in_batch, pair in enumerate(batch):
                 gt, pred = _unpack_pair(pair)
                 if not isinstance(gt, str) or not isinstance(pred, str) or not gt.strip() or not pred.strip():
-                    results_all.append((None, "invalid_input"))
+                    results_all[start + idx_in_batch] = (None, "invalid_input")
                     continue
-                futures.append(executor.submit(safe_timed_equivalence_check, gt, pred, canonicalize))
+
+                future = executor.submit(safe_timed_equivalence_check, gt, pred, canonicalize)
+                futures.append((start + idx_in_batch, future))
 
             # collect results
-            for future in as_completed(futures):
+            for idx, future in futures:
                 try:
-                    equivalent, status = future.result()
+                    results_all[idx] = future.result()
                 except Exception as e:
-                    equivalent, status = None, f"error:{type(e).__name__}"
-                results_all.append((equivalent, status))
+                    results_all[idx] = (None, f"error:{type(e).__name__}")
 
     total_elapsed = time.perf_counter() - total_start
     print(f"[DONE] Processed {len(pairs)} pairs in {total_elapsed:.2f}s using {num_workers or 'default'} workers.")

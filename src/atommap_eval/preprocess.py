@@ -302,7 +302,12 @@ def convert_preproc_to_df(results: List[PreprocessResult]) -> pd.DataFrame:
 
 def preprocess_dataset(df: pd.DataFrame, path_to_save: Optional[str] = None):
     """
-    Simple placeholder wrapper of the whole preprocessing approach for pd.DataFrame inputs.
+    Simple placeholder wrapper of the whole preprocessing approach for pd.DataFrame inputs. 
+    Removes rows that are caused by a mismatch of the ground truth reaction, specifically:
+    1. atom-maping number repeated on the same side of the reaction
+    2. atom on the product-side unmapped and/or impossibility to match an atom on the 
+    product side to an atom on the reactant side
+
 
     Args:
         df: pd.DataFrame that contains colunms `ground_truth_rxn`, `predicted_rxn` 
@@ -323,7 +328,19 @@ def preprocess_dataset(df: pd.DataFrame, path_to_save: Optional[str] = None):
     ]
     results = batch_preprocess_reaction_pairs(pairs)
     df_preproc = convert_preproc_to_df(results)
-    merged = df.merge(df_preproc, how="left", left_index=True, right_on="pair_index").drop(columns=["pair_index"])
+    merged = df.merge(df_preproc, how="left", left_index=True, right_on="pair_index")
+    
+    #filter out rows that do not match format
+    merged_filtered = merged[
+        (~merged['preproc_ref'].isna()) | (merged['ref_B'])
+        ].reset_index(drop=True).copy()
+    print(
+        "Removed",
+        f"{len(merged[(merged['preproc_ref'].isna())])}",
+        "atom-mapped from evaluation because of their format, new size of evaluation dataset:",
+        f"{len(merged_filtered)}"
+    )
+
     if path_to_save:
-        merged.to_csv(path_to_save, index=False)
-    return merged
+        merged_filtered.to_csv(path_to_save, index=False)
+    return merged_filtered

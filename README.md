@@ -11,7 +11,7 @@ How it works:
 - Reactions graphs construction with atom-level / bond-level attributes and mapping
 - Graph isomorphism checks using `networkx.is_isomorphic()`
 
-It allows consistent evaluation of atom-mapping validity (e.g. against a ground truth atom-mapped reaction) by taking into account equivalence
+It allows consistent evaluation of atom-mapping equivalence (e.g. against a ground truth atom-mapped reaction) by taking into account equivalence (i.e. are both atom-mapped reactions describing the same reaction)
 of some atoms (i.e. all `CH3` in `t-Bu` are equivalent, any shuffling of atom-map indices should not impact correctness of the mapping)
 
 *Warning:* tautomeric mappings are not considered equivalent even though from a chemist's perspective they are. Because template extraction
@@ -19,16 +19,21 @@ of the underlying reactivity would yield different results. Flags for tautomers 
 
 By default, if the isomorphism takes more than 10 seconds, it is interrupted and returns None with status "timeout".
 
-### Next steps:
-- clean preprocessing implementation
+**Please read the expected atom-mapping format and preprocessing sections before using this package**
+
+### Coming updates:
+- cleaning preprocessing based on edge cases
+- adding sanitization only as a basic preprocessing option
 - test CLI for >1.0.0
 - update all tests >1.0.0
 - define clearly how evaluation needs to be considered and what are edge cases examples
+- fix `evaluate_pairs_batched` for batch_size>1 that shuffles rows among the batch
 ---
 
 ## Installation
 
 ### Quick install for users (pip)
+(version 1.4.0)
 ```bash
 pip install atommap-eval
 ```
@@ -51,18 +56,39 @@ pip install -e ".[dev]"
 ---
 
 ## Usage
+### Expected atom-mapped reactions format
+The ideal format enforced by the preprocessing is: all atoms on the product side are atom-mapped, and each of the mapping numbers need to have an equivalent on the reactant side of the reaction. 
+RXNMapper builds atom-maps by traveling through product atoms and finding their predicted equivalent on the other side of the reaction iteratively.
+If your data might contain many cases that would be removed by the preprocessing, simply don't use it.
+Sanitize all (ground_truth, prediction) atom-mapped reaction pairs and run evaluation on them. (Soon available as an argument in the evaluation), in the meantime use: `from atommap_eval.preprocess import sanitize_reaction_smiles`.
+
+
 ### Preprocessing
-Preprocessing helps format atom-mapped reactions for a fair evaluation. It is split in 2 parts:
-- canonicalization + sanitization : sorts reaction SMILES and atom-mapping indices deterministically. Sanitizes reactions. Returns None if one of the steps fails (associated with flags A, B, C, S )
+Preprocessing helps format (ground_truth, prediction) atom-mapped reactions for a fair evaluation, removing pairs that are considered unfit atom-mapped reaction format (coming from the ground_truth side). 
+It is split in 2 parts:
+- canonicalization + sanitization : sorts reaction SMILES and atom-mapping indices deterministically. Sanitizes reactions. Returns None if one of the steps fails (associated with flags A, B, C, S)
 - Format analyis : raises specific flags (D) if preprocessing worked but the reaction format
 will lead to a negative evaluation.
+Preprocessing removes rows that:
+- had any flag for the ground truth reaction
+- predicted reactions that raise flag B (an atom on the product side is not on the reactant side, which arises from the ground truth and will be detected as such in the future)
+
+**Different flags**
+Hard stop flags are associated with a None output for the preprocessed reaction:
+- A: two product atoms are mapped with same index (could be solved in the future)
+- B: one of the atoms in the product has no counterpart on the reactants' side
+- C: impossible to canonicalize reaction SMILES, usually because some `->` characters are found within the string
+- S: reaction could not be sanitized
+Warning flags indicate a reaction out of preprocessing that will fail during evaluation (faulty ground-truth format):
+- D: one of the atoms on the product side is not atom-mapped  
 
 To preprocess data, either use the simple wrapper if it matches your needs:
 ```python
 import atommap_eval.preprocess as preprocess
 
-preprocess_df = preprocess.preprocess_dataset(df, path_to_save)
+preprocessed_df = preprocess.preprocess_dataset(df, path_to_save)
 ```
+
 
 ### Python
 If you have few examples, use the following:
@@ -87,9 +113,11 @@ pairs = [
     for _, row in your_df.iterrows()
 ]
 
-results = evaluate_pairs_batched(pairs)
+results = evaluate_pairs_batched(pairs, batch_size=1) #for now, a bigger batch_size shuffles the results,
 # results is a list of tuples (result: bool, status: str) where status can be "ok", "timeout", "error:{e}"
 ```
+When using `evaluate_pairs_batched`, a timeout of 10 seconds per pair is enforced. 
+
 
 ### CLI
 ```bash

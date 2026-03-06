@@ -129,7 +129,11 @@ def detect_atom_no_mapnum_in_preproc_prod(rxn_smi: str) -> bool:
 
 
 # Level 1 - preprocessing
-def preprocess_reaction_pair(ref_rxn: str, pred_rxn: str) -> PreprocessResult:
+def preprocess_reaction_pair(
+        ref_rxn: str, 
+        pred_rxn: str, 
+        sanitize_only: bool = False,
+        ) -> PreprocessResult:
     """
     Run canonicalization + sanitization for a pair of reactions.
     Flags:
@@ -140,33 +144,46 @@ def preprocess_reaction_pair(ref_rxn: str, pred_rxn: str) -> PreprocessResult:
     """
     base_flags = {"A": False, "B": False, "C": False, "S": False}
 
-    def preprocess_one(rxn, flags):
-        try: # canonicalization
-            can_rxn = canonicalize_rxn_smiles(rxn)
-        except Exception as e:
-            msg = str(e)
-            if "Two product atoms mapped to the same precursor atom" in msg:
-                flags["A"] = True
-            elif re.search(r"Error:\s*'(\d+)' is not in list", msg):
-                flags["B"] = True
-            else: # should be "Canonicalization failed for input SMILES:...."
-                flags["C"] = True
-            return None
-        try: # sanitization
-            sanitized_rxn = sanitize_reaction_smiles(can_rxn)
-            if sanitized_rxn is None:
+    if sanitize_only:
+        base_flags = {"A": None, "B": None, "C": None, "S": False}
+
+    def preprocess_one(rxn, flags, sanitize_only):
+        if sanitize_only:
+            try:
+                sanitized_rxn = sanitize_reaction_smiles(rxn)
+                if sanitized_rxn is None:
+                    flags["S"] = True
+                    return None
+            except Exception:
                 flags["S"] = True
                 return None
-        except Exception:
-            flags["S"] = True
-            return None
+        else:   
+            try: # canonicalization
+                can_rxn = canonicalize_rxn_smiles(rxn)
+            except Exception as e:
+                msg = str(e)
+                if "Two product atoms mapped to the same precursor atom" in msg:
+                    flags["A"] = True
+                elif re.search(r"Error:\s*'(\d+)' is not in list", msg):
+                    flags["B"] = True
+                else: # should be "Canonicalization failed for input SMILES:...."
+                    flags["C"] = True
+                return None
+            try: # sanitization
+                sanitized_rxn = sanitize_reaction_smiles(can_rxn)
+                if sanitized_rxn is None:
+                    flags["S"] = True
+                    return None
+            except Exception:
+                flags["S"] = True
+                return None
         return sanitized_rxn
     
     flags_ref = base_flags.copy()
     flags_pred = base_flags.copy()
 
-    ref_processed = preprocess_one(ref_rxn, flags_ref)
-    pred_processed = preprocess_one(pred_rxn, flags_pred)
+    ref_processed = preprocess_one(ref_rxn, flags_ref, sanitize_only)
+    pred_processed = preprocess_one(pred_rxn, flags_pred, sanitize_only)
     
     return PreprocessResult(
         reference=ref_processed,
@@ -193,13 +210,15 @@ def diagnostic_flags_reaction(rxn_smi: str) -> Dict[str, bool]:
 
 # Level 2 - preprocessing + diagnostics
 def batch_preprocess_reaction_pairs(
-    pairs: Iterable[Union[ReactionPair, tuple[str, str]]]
+    pairs: Iterable[Union[ReactionPair, tuple[str, str]]],
+    sanitize_only: bool = False,
 ) -> List[PreprocessResult]:
     """
     Apply preprocessing and diagnostic flagging to a list of reaction pairs.
 
     Args:
         pairs: Iterable of either ReactionPair objects or (ground_truth, prediction) tuples.
+        sanitize_only (bool): If True, only performs sanitization as preprocessing.
 
     Returns:
         List of PreprocessResult objects (one per pair).
@@ -214,7 +233,7 @@ def batch_preprocess_reaction_pairs(
             ref_rxn, pred_rxn = pair  # tuple[str, str]
 
         # --- step 1: preprocessing ---
-        result = preprocess_reaction_pair(ref_rxn=ref_rxn, pred_rxn=pred_rxn)
+        result = preprocess_reaction_pair(ref_rxn=ref_rxn, pred_rxn=pred_rxn, sanitize_only=sanitize_only)
 
         # --- step 2: diagnostics ---
         if result.reference:
@@ -300,7 +319,11 @@ def convert_preproc_to_df(results: List[PreprocessResult]) -> pd.DataFrame:
 
 
 
-def preprocess_dataset(df: pd.DataFrame, path_to_save: Optional[str] = None):
+def preprocess_dataset(
+        df: pd.DataFrame, 
+        path_to_save: Optional[str] = None, 
+        sanitize_only: bool =False
+        ) -> pd.DataFrame:
     """
     Simple placeholder wrapper of the whole preprocessing approach for pd.DataFrame inputs. 
     Removes rows that are caused by a mismatch of the ground truth reaction, specifically:
@@ -313,6 +336,7 @@ def preprocess_dataset(df: pd.DataFrame, path_to_save: Optional[str] = None):
         df: pd.DataFrame that contains colunms `ground_truth_rxn`, `predicted_rxn` 
         and `row_idx` to preprocess.
         path_to_save (optional): path to file where the preprocessed dataframe as CSV should be saved
+        sanitize_only (bool): if True, preprocessing only consists in sanitizing all reaction pairs.
 
     Returns:
         pd.DataFrame: DataFrame with same format as original, with added columns describing what happened.
@@ -326,18 +350,30 @@ def preprocess_dataset(df: pd.DataFrame, path_to_save: Optional[str] = None):
         ReactionPair(row.ground_truth_rxn, row.predicted_rxn, id=row.get("row_idx"))
         for _, row in df.iterrows()
     ]
-    results = batch_preprocess_reaction_pairs(pairs)
+    results = batch_preprocess_reaction_pairs(pairs, sanitize_only=sanitize_only)
     df_preproc = convert_preproc_to_df(results)
     merged = df.merge(df_preproc, how="left", left_index=True, right_on="pair_index")
     
     #filter out rows that do not match format
-    merged_filtered = merged[
-        (~merged['preproc_ref'].isna()) | (merged['ref_B'])
+    ## - merged['preproc_ref'].isna(): invalid ground truth reactions
+    ## - merged['pred_B']: if predictions are flagged B 
+    ##   (for algorithms that try to map every atom on the product side), 
+    ##  it means that GT lacks an atom on the reactant side
+    ## - merged['ref_D']: if GT has an unmapped atom on the product side
+    if sanitize_only:
+        merged_filtered = merged[
+        (~merged['preproc_ref'].isna()) & (~merged['ref_D'])
         ].reset_index(drop=True).copy()
+    else:
+        merged_filtered = merged[
+            (~merged['preproc_ref'].isna()) & (~merged['pred_B']) & (~merged['ref_D'])
+            ].reset_index(drop=True).copy()
+
     print(
         "Removed",
-        f"{len(merged[(merged['preproc_ref'].isna())])}",
-        "atom-mapped from evaluation because of their format, new size of evaluation dataset:",
+        f"{len(merged)-len(merged_filtered)}",
+        f"atom-mapped reaction from evaluation because of their format (sanitization-only: {sanitize_only}),\n",
+        "new size of evaluation dataset:",
         f"{len(merged_filtered)}"
     )
 

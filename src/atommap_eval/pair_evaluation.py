@@ -1,4 +1,4 @@
-from concurrent.futures import ProcessPoolExecutor, TimeoutError
+from concurrent.futures import ProcessPoolExecutor, TimeoutError, as_completed
 from typing import List, Optional, Tuple, Union
 import time
 
@@ -43,52 +43,107 @@ def evaluate_pairs_batched(
     pairs: List[Union[Tuple[str, str], "ReactionPair"]],
     canonicalize: bool = False,
     num_workers: Optional[int] = None,
-    batch_size: int = 1000,
+    batch_per_worker: int = 32,
 ) -> List[Tuple[Optional[bool], str]]:
     """
-    Evaluate atom-map equivalence for many (gt, pred) pairs using batches, timeouts, and parallelism.
+    Evaluate atom-map equivalence for many (gt, pred) pairs using batches and parallelism.
 
     Args:
         pairs: list of (gt_smiles, pred_smiles) tuples or ReactionPair objects
         canonicalize: whether to canonicalize before comparison
-        num_workers: number of parallel workers (defaults to os.cpu_count())
-        batch_size: number of reactions to process per batch
-        timeout: per-reaction timeout in seconds
+        num_workers: number of parallel workers
+        batch_per_worker: target number of in-flight jobs per worker
 
     Returns:
-        List[Tuple[Optional[bool], str]]:
-            Each element is (equivalent, status)
-            where status is in {"ok", "timeout", "invalid_input", "error:<type>"}
+        List of (equivalent, status) tuples.
     """
-    results_all: List[Tuple[Optional[bool], str]] = [None] * len(pairs)
+    results_all: List[Optional[Tuple[Optional[bool], str]]] = [None] * len(pairs)
     total_start = time.perf_counter()
 
-    print(f"Starting evaluation of {len(pairs)} pairs with {num_workers or 'default'} workers...", flush=True)
+    if not num_workers:
+        num_workers = 1
+    in_flight = batch_per_worker * num_workers
 
-    with ProcessPoolExecutor(max_workers=num_workers) as executor:
-        for start in range(0, len(pairs), batch_size):
-            end = min(start + batch_size, len(pairs))
-            print(f"Submitting batch {start}-{end} / {len(pairs)}...", flush=True)
+    print(
+        f"[START] Evaluation of {len(pairs)} pairs with {num_workers} workers...",
+        flush=True,
+    )
 
-            batch = pairs[start:end]
-            futures = []
+    def submit_one(executor, idx, pair):
+        try:
+            gt, pred = _unpack_pair(pair)
 
-            for idx_in_batch, pair in enumerate(batch):
-                gt, pred = _unpack_pair(pair)
-                if not isinstance(gt, str) or not isinstance(pred, str) or not gt.strip() or not pred.strip():
-                    results_all[start + idx_in_batch] = (None, "invalid_input")
-                    continue
+            if (
+                not isinstance(gt, str)
+                or not isinstance(pred, str)
+                or not gt.strip()
+                or not pred.strip()
+            ):
+                results_all[idx] = (None, "invalid_input")
+                return None
 
-                future = executor.submit(safe_timed_equivalence_check, gt, pred, canonicalize)
-                futures.append((start + idx_in_batch, future))
+            return executor.submit(
+                safe_timed_equivalence_check,
+                gt,
+                pred,
+                canonicalize,
+            )
 
-            # collect results
-            for idx, future in futures:
-                try:
-                    results_all[idx] = future.result()
-                except Exception as e:
-                    results_all[idx] = (None, f"error:{type(e).__name__}")
+        except Exception as e:
+            results_all[idx] = (None, f"error:submit:{type(e).__name__}")
+            return None
+
+    def fill_pipeline(executor, iterator, future_to_idx, target_size):
+        """
+        Pull from iterator until future_to_idx reaches target_size
+        or the iterator is exhausted.
+
+        Invalid / bad inputs are consumed and written directly into results_all,
+        but they do not contribute to future_to_idx size.
+        """
+        while len(future_to_idx) < target_size:
+            try:
+                idx, pair = next(iterator)
+            except StopIteration:
+                return
+
+            fut = submit_one(executor, idx, pair)
+            if fut is not None:
+                future_to_idx[fut] = idx
+
+    with ProcessPoolExecutor(max_workers=num_workers) as ex:
+        it = iter(enumerate(pairs))
+        future_to_idx = {}
+
+        # initial fill
+        fill_pipeline(ex, it, future_to_idx, in_flight)
+
+        # drain one completed future at a time, then refill
+        while future_to_idx:
+            fut = next(as_completed(future_to_idx))
+            idx = future_to_idx.pop(fut)
+            try:
+                result = fut.result()
+                if result is None:
+                    results_all[idx] = (None, "error:no_return")
+                elif not isinstance(result, tuple) or len(result) != 2:
+                    results_all[idx] = (None, f"error:bad_return:{type(result).__name__}")
+                else:
+                    results_all[idx] = result
+            except Exception as e:
+                results_all[idx] = (None, f"error:{type(e).__name__}")
+
+            fill_pipeline(ex, it, future_to_idx, len(future_to_idx) + 1)
+
+    bad = [i for i, x in enumerate(results_all) if x is None]
+    if bad:
+        raise RuntimeError(
+            f"Unfilled result slots remain: first={bad[:10]}, count={len(bad)}"
+        )
 
     total_elapsed = time.perf_counter() - total_start
-    print(f"[DONE] Processed {len(pairs)} pairs in {total_elapsed:.2f}s using {num_workers or 'default'} workers.")
+    print(
+        f"[DONE] Processed {len(pairs)} pairs in {total_elapsed:.2f}s using {num_workers} workers."
+    )
+
     return results_all

@@ -157,7 +157,7 @@ def preprocess_reaction_pair(
             except Exception:
                 flags["S"] = True
                 return None
-        else:   
+        else:
             try: # canonicalization
                 can_rxn = canonicalize_rxn_smiles(rxn)
             except Exception as e:
@@ -326,7 +326,7 @@ def preprocess_dataset(
         ) -> pd.DataFrame:
     """
     Simple placeholder wrapper of the whole preprocessing approach for pd.DataFrame inputs. 
-    Removes rows that are caused by a mismatch of the ground truth reaction, specifically:
+    Removes rows that are caused by an error-prone format of the ground truth reaction, specifically:
     1. atom-maping number repeated on the same side of the reaction
     2. atom on the product-side unmapped and/or impossibility to match an atom on the 
     product side to an atom on the reactant side
@@ -336,7 +336,8 @@ def preprocess_dataset(
         df: pd.DataFrame that contains colunms `ground_truth_rxn`, `predicted_rxn` 
         and `row_idx` to preprocess.
         path_to_save (optional): path to file where the preprocessed dataframe as CSV should be saved
-        sanitize_only (bool): if True, preprocessing only consists in sanitizing all reaction pairs.
+        sanitize_only (bool): if True, preprocessing only consists of sanitizing reaction pairs.
+        Will not remove as many reactions as flags A, B, C depend on canonicalization. 
 
     Returns:
         pd.DataFrame: DataFrame with same format as original, with added columns describing what happened.

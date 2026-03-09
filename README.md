@@ -4,10 +4,10 @@
 
 ## Overview
 
-`atommap_eval` is a Python package for comparing two atom-mapped reactions and determining whether they are chemically equivalent, using their graph (`networkx`) representation and RDKit.
+`atommap_eval` is a package for comparing two atom-mapped reactions and determining whether they are chemically equivalent, using their graph (`networkx`) representation and RDKit.
 
 How it works:
-- Optional preprocessing: "Canonicalization" and standardization of reaction SMILES to ensure all reactions are in the right format.
+- Optional (but recommended) preprocessing: canonicalization and standardization of reaction SMILES to ensure all reactions are in the right format.
 - Reactions graphs construction with atom-level / bond-level attributes and mapping
 - Graph isomorphism checks using `networkx.is_isomorphic()`
 
@@ -22,12 +22,11 @@ By default, if the isomorphism takes more than 10 seconds, it is interrupted and
 **Please read the expected atom-mapping format and preprocessing sections before using this package**
 
 ### Coming updates:
-- cleaning preprocessing based on edge cases
 - adding sanitization only as a basic preprocessing option
 - test CLI for >1.0.0
 - update all tests >1.0.0
-- define clearly how evaluation needs to be considered and what are edge cases examples
-- fix `evaluate_pairs_batched` for batch_size>1 that shuffles rows among the batch
+- fix `sanitize_only=True` behaviour. If reactions are preprocessed only with sanitization, the evaluation sometimes outputs false negatives, which is not the case with complete preprocessing. PRs welcome.
+
 ---
 
 ## Installation
@@ -86,7 +85,7 @@ To preprocess data, either use the simple wrapper if it matches your needs:
 ```python
 import atommap_eval.preprocess as preprocess
 
-preprocessed_df = preprocess.preprocess_dataset(df, path_to_save)
+preprocessed_df = preprocess.preprocess_dataset(df, path_to_save) #use `preproc_ref` and `preproc_pred` in next steps.
 ```
 
 
@@ -106,15 +105,18 @@ However, if you have more reactions to evaluate, use:
 ```python
 from atommap_eval.pair_evaluation import evaluate_pairs_batched
 
-# `pairs` is either a list of tuples (rxn1, rxn2) or ReactionPair objects from atommap_eval.data_models
-# for example if you store reactions in `your_df` under columns "ground_truth_rxn" and "predicted_rxn":
+# ideally we build the pairs from the preprocessed dataframe we just obtained above:
 pairs = [
-    ReactionPair(row.ground_truth_rxn, row.predicted_rxn)
-    for _, row in your_df.iterrows()
+    ReactionPair(
+        row.preproc_ref, 
+        row.predicted_rxn,
+        row.pair_index #optional, makes sure we keep track of each row
+        )
+    for _, row in preprocessed_df.iterrows()
 ]
 
-results = evaluate_pairs_batched(pairs, batch_size=1) #for now, a bigger batch_size shuffles the results,
-# results is a list of tuples (result: bool, status: str) where status can be "ok", "timeout", "error:{e}"
+results = evaluate_pairs_batched(pairs=pairs, num_workers=8, batch_per_worker=32)
+# list of tuples (result: bool, status: str) where status can be "ok", "timeout", "error:{e}"
 ```
 When using `evaluate_pairs_batched`, a timeout of 10 seconds per pair is enforced. 
 
